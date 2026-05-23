@@ -1,19 +1,13 @@
-import Agent from "@/components/Agent";
-import { getCurrentUser } from "@/lib/actions/auth.action";
+import InterviewForm from "@/components/InterviewForm";
 
 const Page = async () => {
-  const user = await getCurrentUser();
-
   return (
     <>
-      <h3>Interview generation</h3>
-
-      <Agent
-        userName={user?.name!}
-        userId={user?.id}
-        profileImage={user?.profileURL}
-        type="generate"
-      />
+      <h3>Generate an Interview</h3>
+      <p className="text-light-100 mb-2">
+        Fill in the details below and we&apos;ll generate a personalised interview for you.
+      </p>
+      <InterviewForm />
     </>
   );
 };
