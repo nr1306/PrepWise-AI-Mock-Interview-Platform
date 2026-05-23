@@ -1,7 +1,7 @@
 "use server";
 
 import { generateObject, generateText } from "ai";
-import { google } from "@ai-sdk/google";
+import { openai } from "@ai-sdk/openai";
 
 import { db } from "@/firebase/admin";
 import { feedbackSchema } from "@/constants";
@@ -20,10 +20,9 @@ export async function createFeedback(params: CreateFeedbackParams) {
       .join("");
 
     const { object } = await generateObject({
-      model: google("gemini-2.0-flash-001", {
-        structuredOutputs: false,
-      }),
+      model: openai("gpt-4o-mini"),
       schema: feedbackSchema,
+      mode: "tool",
       prompt: `
         You are an AI interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Be thorough and detailed in your analysis. Don't be lenient with the candidate. If there are mistakes or areas for improvement, point them out.
         Transcript:
@@ -137,21 +136,31 @@ export async function createInterview(params: {
   type: string;
   techstack: string;
   amount: number;
+  coach?: string;
+  track?: string;
 }): Promise<{ success: boolean; interviewId?: string; error?: string }> {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "Not authenticated" };
 
-  const { role, level, type, techstack, amount } = params;
+  const { role, level, type, techstack, amount, coach = "maya", track = "tech" } = params;
+
+  const trackContext: Record<string, string> = {
+    tech:       "Focus on software engineering concepts, system design, and coding.",
+    finance:    "Focus on quantitative reasoning, financial modeling, and market analysis.",
+    marketing:  "Focus on brand strategy, growth metrics, and campaign thinking.",
+    healthcare: "Focus on clinical knowledge, patient care scenarios, and healthcare systems.",
+  };
 
   try {
     const { text: questions } = await generateText({
-      model: google("gemini-2.0-flash-001"),
+      model: openai("gpt-4o-mini"),
       prompt: `Prepare questions for a job interview.
         The job role is ${role}.
         The job experience level is ${level}.
         The tech stack used in the job is: ${techstack}.
         The focus between behavioural and technical questions should lean towards: ${type}.
         The amount of questions required is: ${amount}.
+        Industry context: ${trackContext[track] ?? ""}
         Please return only the questions, without any additional text.
         The questions are going to be read by a voice assistant so do not use "/" or "*" or any other special characters which might break the voice assistant.
         Return the questions formatted like this:
@@ -159,13 +168,18 @@ export async function createInterview(params: {
       `,
     });
 
+    const jsonMatch = questions.match(/\[[\s\S]*\]/);
+    const parsedQuestions = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+
     const interview = {
       role,
       type,
       level,
       techstack: techstack.split(",").map((t) => t.trim()),
-      questions: JSON.parse(questions),
+      questions: parsedQuestions,
       userId: user.id,
+      coach,
+      track,
       finalized: true,
       coverImage: getRandomInterviewCover(),
       createdAt: new Date().toISOString(),
@@ -176,5 +190,59 @@ export async function createInterview(params: {
   } catch (error) {
     console.error("createInterview error:", error);
     return { success: false, error: "Failed to generate interview" };
+  }
+}
+
+export async function getUserStats(userId: string): Promise<{
+  avgScore: number;
+  weeklyDelta: number;
+  weakestCategory: string;
+  sessionCount: number;
+}> {
+  try {
+    const snapshot = await db
+      .collection("feedback")
+      .where("userId", "==", userId)
+      .orderBy("createdAt", "desc")
+      .limit(20)
+      .get();
+
+    if (snapshot.empty) {
+      return { avgScore: 0, weeklyDelta: 0, weakestCategory: "Technical Knowledge", sessionCount: 0 };
+    }
+
+    const feedbacks = snapshot.docs.map((d) => d.data() as Feedback);
+    const now = Date.now();
+    const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+
+    const thisWeek = feedbacks.filter(
+      (f) => now - new Date(f.createdAt).getTime() < oneWeekMs
+    );
+    const lastWeek = feedbacks.filter((f) => {
+      const age = now - new Date(f.createdAt).getTime();
+      return age >= oneWeekMs && age < 2 * oneWeekMs;
+    });
+
+    const avg = (arr: Feedback[]) =>
+      arr.length ? arr.reduce((s, f) => s + f.totalScore, 0) / arr.length : 0;
+
+    const avgScore = Math.round(avg(feedbacks.slice(0, 5)));
+    const weeklyDelta = Math.round(avg(thisWeek) - avg(lastWeek));
+
+    // Find weakest category from last feedback
+    const latest = feedbacks[0];
+    let weakest = { name: "Technical Knowledge", score: 100 };
+    for (const cat of latest.categoryScores ?? []) {
+      if (cat.score < weakest.score) weakest = cat;
+    }
+
+    return {
+      avgScore,
+      weeklyDelta,
+      weakestCategory: weakest.name,
+      sessionCount: feedbacks.length,
+    };
+  } catch {
+    return { avgScore: 0, weeklyDelta: 0, weakestCategory: "Technical Knowledge", sessionCount: 0 };
   }
 }

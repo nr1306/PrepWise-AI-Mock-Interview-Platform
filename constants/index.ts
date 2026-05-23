@@ -97,63 +97,74 @@ export const mappings = {
   "aws amplify": "amplify",
 };
 
-export const interviewer: CreateAssistantDTO = {
-  name: "Interviewer",
-  firstMessage:
-    "Hello! Thank you for taking the time to speak with me today. I'm excited to learn more about you and your experience.",
-  transcriber: {
-    provider: "deepgram",
-    model: "nova-2",
-    language: "en",
-  },
-  voice: {
-    provider: "11labs",
-    voiceId: "sarah",
-    stability: 0.4,
-    similarityBoost: 0.8,
-    speed: 0.9,
-    style: 0.5,
-    useSpeakerBoost: true,
-  },
-  model: {
-    provider: "openai",
-    model: "gpt-4",
-    messages: [
-      {
-        role: "system",
-        content: `You are a professional job interviewer conducting a real-time voice interview with a candidate. Your goal is to assess their qualifications, motivation, and fit for the role.
+const baseTranscriber = {
+  provider: "deepgram" as const,
+  model: "nova-2" as const,
+  language: "en" as const,
+};
 
-Interview Guidelines:
-Follow the structured question flow:
+const baseModel = (systemContent: string) => ({
+  provider: "openai" as const,
+  model: "gpt-4" as const,
+  messages: [{ role: "system" as const, content: systemContent }],
+});
+
+const QUESTIONS_TEMPLATE = `Follow the structured question flow:
 {{questions}}
 
-Engage naturally & react appropriately:
-Listen actively to responses and acknowledge them before moving forward.
-Ask brief follow-up questions if a response is vague or requires more detail.
-Keep the conversation flowing smoothly while maintaining control.
-Be professional, yet warm and welcoming:
+This is a voice conversation — keep responses short, natural, and conversational.
+Listen actively and ask brief follow-up questions when needed.
+Conclude by thanking the candidate and letting them know they will hear back soon.`;
 
-Use official yet friendly language.
-Keep responses concise and to the point (like in a real voice interview).
-Avoid robotic phrasing—sound natural and conversational.
-Answer the candidate’s questions professionally:
+export const coaches: Record<string, CreateAssistantDTO> = {
+  sarah: {
+    name: "Sarah",
+    firstMessage:
+      "Hi there! I’m Sarah, and I’m really looking forward to our conversation today. Take a breath — this is a safe space to practice. Let’s get started!",
+    transcriber: baseTranscriber,
+    voice: {
+      provider: "openai",
+      voiceId: "nova",
+    },
+    model: baseModel(`You are Sarah, an encouraging and supportive interview coach.
+Your style is warm, patient, and constructive. You celebrate effort and guide candidates gently.
+When a candidate struggles, offer a brief hint or reassurance before moving on.
+${QUESTIONS_TEMPLATE}`),
+  },
 
-If asked about the role, company, or expectations, provide a clear and relevant answer.
-If unsure, redirect the candidate to HR for more details.
+  david: {
+    name: "David",
+    firstMessage:
+      "Let’s get straight to it. I’m David. We have limited time and high standards — I expect precise, structured answers. Ready?",
+    transcriber: baseTranscriber,
+    voice: {
+      provider: "openai",
+      voiceId: "onyx",
+    },
+    model: baseModel(`You are David, a challenging and rigorous interviewer from a top-tier firm.
+Your style is direct, fast-paced, and demanding. You ask sharp follow-up questions and do not accept vague answers.
+Push the candidate to be specific. Keep a professional but intense tone throughout.
+${QUESTIONS_TEMPLATE}`),
+  },
 
-Conclude the interview properly:
-Thank the candidate for their time.
-Inform them that the company will reach out soon with feedback.
-End the conversation on a polite and positive note.
-
-
-- Be sure to be professional and polite.
-- Keep all your responses short and simple. Use official language, but be kind and welcoming.
-- This is a voice conversation, so keep your responses short, like in a real conversation. Don't ramble for too long.`,
-      },
-    ],
+  maya: {
+    name: "Maya",
+    firstMessage:
+      "Good day. I’m Maya. I’ll be conducting your interview today in a standard professional format. Please answer clearly and concisely.",
+    transcriber: baseTranscriber,
+    voice: {
+      provider: "openai",
+      voiceId: "shimmer",
+    },
+    model: baseModel(`You are Maya, a formal and objective professional interviewer.
+Your style is calm, balanced, and thorough. You follow the question flow precisely and maintain a corporate tone.
+Acknowledge answers briefly before moving to the next question.
+${QUESTIONS_TEMPLATE}`),
   },
 };
+
+// Backward-compatible default
+export const interviewer: CreateAssistantDTO = coaches.maya;
 
 export const feedbackSchema = z.object({
   totalScore: z.number(),

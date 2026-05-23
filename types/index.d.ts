@@ -23,6 +23,8 @@ interface Interview {
   userId: string;
   type: string;
   finalized: boolean;
+  coach?: string;
+  track?: string;
 }
 
 interface CreateFeedbackParams {
@@ -54,6 +56,7 @@ interface AgentProps {
   feedbackId?: string;
   type: "generate" | "interview";
   questions?: string[];
+  coach?: string;
 }
 
 interface RouteParams {
