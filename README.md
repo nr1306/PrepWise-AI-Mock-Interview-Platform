@@ -1,1 +1,0 @@
-# PrepWise-AI-Mock-Interview-Platform
