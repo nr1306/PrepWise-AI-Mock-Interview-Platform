@@ -19,14 +19,18 @@ export async function createFeedback(params: CreateFeedbackParams) {
       )
       .join("");
 
+    const transcriptNote = transcript.length < 3
+      ? "Note: The interview was very brief. Score conservatively and note the lack of data in your assessment."
+      : "";
+
     const { object } = await generateObject({
       model: openai("gpt-4o-mini"),
       schema: feedbackSchema,
-      mode: "tool",
       prompt: `
         You are an AI interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Be thorough and detailed in your analysis. Don't be lenient with the candidate. If there are mistakes or areas for improvement, point them out.
+        ${transcriptNote}
         Transcript:
-        ${formattedTranscript}
+        ${formattedTranscript || "(No transcript captured — the interview ended before any speech was recorded.)"}
 
         Please score the candidate from 0 to 100 in the following areas. Do not add categories other than the ones provided:
         - **Communication Skills**: Clarity, articulation, structured responses.
@@ -36,7 +40,7 @@ export async function createFeedback(params: CreateFeedbackParams) {
         - **Confidence & Clarity**: Confidence in responses, engagement, and clarity.
         `,
       system:
-        "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories",
+        "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Always return scores and feedback even if the transcript is very short or empty.",
     });
 
     const feedback = {

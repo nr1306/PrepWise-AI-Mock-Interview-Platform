@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -49,6 +49,8 @@ const Agent = ({
   const [lastMessage, setLastMessage] = useState("");
 
   const confidence = useMemo(() => computeConfidence(messages), [messages]);
+  const messagesRef = useRef<SavedMessage[]>([]);
+  const feedbackRequested = useRef(false);
 
   useEffect(() => {
     const onCallStart  = () => setCallStatus(CallStatus.ACTIVE);
@@ -84,33 +86,42 @@ const Agent = ({
     };
   }, []);
 
+  // Keep ref in sync so feedback generation always reads the latest messages
   useEffect(() => {
+    messagesRef.current = messages;
     if (messages.length > 0) {
       setLastMessage(messages[messages.length - 1].content);
     }
+  }, [messages]);
 
-    const handleGenerateFeedback = async (msgs: SavedMessage[]) => {
-      const { success, feedbackId: id } = await createFeedback({
+  // Feedback generation — fires once when call ends, never on every new message
+  useEffect(() => {
+    if (callStatus !== CallStatus.FINISHED) return;
+    if (feedbackRequested.current) return;
+    feedbackRequested.current = true;
+
+    if (type === "generate") {
+      router.push("/dashboard");
+      return;
+    }
+
+    const generate = async () => {
+const { success, feedbackId: id } = await createFeedback({
         interviewId: interviewId!,
         userId: userId!,
-        transcript: msgs,
+        transcript: messagesRef.current,
         feedbackId,
       });
       if (success && id) {
-        router.push(`/interview/${interviewId}/feedback`);
+        router.push(`/feedback/${interviewId}`);
       } else {
         router.push("/dashboard");
       }
     };
 
-    if (callStatus === CallStatus.FINISHED) {
-      if (type === "generate") {
-        router.push("/dashboard");
-      } else {
-        handleGenerateFeedback(messages);
-      }
-    }
-  }, [messages, callStatus, feedbackId, interviewId, router, type, userId]);
+    generate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [callStatus]);
 
   const handleCall = async () => {
     setCallStatus(CallStatus.CONNECTING);

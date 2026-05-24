@@ -27,6 +27,13 @@ interface Interview {
   track?: string;
 }
 
+interface QuestionFeedback {
+  question: string;
+  score: number;
+  comment: string;
+  tip: string;
+}
+
 interface CreateFeedbackParams {
   interviewId: string;
   userId: string;

@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/actions/auth.action";
 import { getInterviewsByUserId, getFeedbackByInterviewId } from "@/lib/actions/general.action";
 import SessionCard from "@/components/dashboard/SessionCard";
+import DisplayTechIcons from "@/components/DisplayTechIcons";
 import Link from "next/link";
 
 export default async function HistoryPage() {
@@ -39,10 +40,11 @@ export default async function HistoryPage() {
               interviewId={iv.id}
               role={iv.role}
               type={iv.type}
-              techstack={iv.techstack}
               createdAt={iv.createdAt}
               score={iv.score}
-            />
+            >
+              <DisplayTechIcons techStack={iv.techstack} />
+            </SessionCard>
           ))}
         </div>
       ) : (

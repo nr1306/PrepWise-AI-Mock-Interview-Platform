@@ -9,6 +9,7 @@ import {
 import ConfidenceRing from "@/components/dashboard/ConfidenceRing";
 import RecommendedSession from "@/components/dashboard/RecommendedSession";
 import SessionCard from "@/components/dashboard/SessionCard";
+import DisplayTechIcons from "@/components/DisplayTechIcons";
 
 const categoryToType: Record<string, string> = {
   "Communication Skills":   "Behavioral",
@@ -136,10 +137,11 @@ export default async function DashboardPage() {
                 interviewId={iv.id}
                 role={iv.role}
                 type={iv.type}
-                techstack={iv.techstack}
                 createdAt={iv.createdAt}
                 score={iv.score}
-              />
+              >
+                <DisplayTechIcons techStack={iv.techstack} />
+              </SessionCard>
             ))}
           </div>
         ) : (
@@ -167,9 +169,10 @@ export default async function DashboardPage() {
                 interviewId={iv.id}
                 role={iv.role}
                 type={iv.type}
-                techstack={iv.techstack}
                 createdAt={iv.createdAt}
-              />
+              >
+                <DisplayTechIcons techStack={iv.techstack} />
+              </SessionCard>
             ))}
           </div>
         </section>
